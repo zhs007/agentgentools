@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -79,5 +81,45 @@ func TestMain_Args_E2E(t *testing.T) {
 	want := `{"text":"hello","type":"weird","phase":"mid","outcome":"win","tags":["cat"],"mood":"dark"}`
 	if stdout.String() != want {
 		t.Fatalf("unexpected stdout\nwant: %s\ngot:  %s", want, stdout.String())
+	}
+}
+
+func TestBuildInputFromArgs_TextFile(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "in.txt")
+	if err := os.WriteFile(p, []byte("from-file"), 0o600); err != nil {
+		t.Fatalf("write input file failed: %v", err)
+	}
+
+	in, err := buildInputFromArgs([]string{"--text-file=" + p})
+	if err != nil {
+		t.Fatalf("buildInputFromArgs failed: %v", err)
+	}
+	if in.Text != "from-file" {
+		t.Fatalf("unexpected text from file: %q", in.Text)
+	}
+}
+
+func TestMain_OutFile_E2E(t *testing.T) {
+	dir := t.TempDir()
+	outFile := filepath.Join(dir, "out.json")
+
+	cmd := exec.Command("go", "run", ".", "--text=hello", "--out-file="+outFile)
+	cmd.Dir = "."
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("run failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	b, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("read out file failed: %v", err)
+	}
+	want := `{"text":"hello","type":"","phase":"","outcome":"","tags":[],"mood":""}`
+	if string(b) != want {
+		t.Fatalf("unexpected out-file content\nwant: %s\ngot:  %s", want, string(b))
 	}
 }

@@ -1,7 +1,10 @@
 module agentgentools
 
-go 1.22.0
+go 1.24.0
 
-require github.com/mailru/easyjson v0.9.1
+require (
+	github.com/mailru/easyjson v0.9.1
+	github.com/tetratelabs/wazero v1.11.0
+)
 
-require github.com/josharian/intern v1.0.0 // indirect
+require golang.org/x/sys v0.38.0 // indirect

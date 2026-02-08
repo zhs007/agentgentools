@@ -18,6 +18,12 @@ type Input struct {
 	Mood    string
 }
 
+type runInput struct {
+	Input
+	TextFile string
+	OutFile  string
+}
+
 func (in *Input) MarshalEasyJSON(w *jwriter.Writer) {
 	w.RawByte('{')
 	w.RawString(`"text":`)
@@ -57,13 +63,15 @@ func parseTags(raw string) []string {
 	return tags
 }
 
-func buildInputFromArgs(args []string) (Input, error) {
-	var in Input
+func buildInputFromArgs(args []string) (runInput, error) {
+	var in runInput
 	fs := flag.NewFlagSet("dreamcard", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
 	var tagsRaw string
 	fs.StringVar(&in.Text, "text", "", "text content")
+	fs.StringVar(&in.TextFile, "text-file", "", "read text content from file")
+	fs.StringVar(&in.OutFile, "out-file", "", "write output json to file")
 	fs.StringVar(&in.Type, "type", "", "type value")
 	fs.StringVar(&in.Phase, "phase", "", "phase value")
 	fs.StringVar(&in.Outcome, "outcome", "", "outcome value")
@@ -71,7 +79,14 @@ func buildInputFromArgs(args []string) (Input, error) {
 	fs.StringVar(&in.Mood, "mood", "", "mood value")
 
 	if err := fs.Parse(args); err != nil {
-		return Input{}, err
+		return runInput{}, err
+	}
+	if in.TextFile != "" {
+		b, err := os.ReadFile(in.TextFile)
+		if err != nil {
+			return runInput{}, err
+		}
+		in.Text = string(b)
 	}
 	in.Tags = parseTags(tagsRaw)
 	return in, nil
@@ -89,10 +104,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, "parse args failed:", err)
 		os.Exit(1)
 	}
-	out, err := process(in)
+	out, err := process(in.Input)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "process failed:", err)
 		os.Exit(1)
+	}
+	if in.OutFile != "" {
+		if err := os.WriteFile(in.OutFile, out, 0o600); err != nil {
+			fmt.Fprintln(os.Stderr, "write out-file failed:", err)
+			os.Exit(1)
+		}
 	}
 	if _, err := os.Stdout.Write(out); err != nil {
 		fmt.Fprintln(os.Stderr, "write stdout failed:", err)
